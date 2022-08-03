@@ -1,0 +1,55 @@
+version: '4.1'
+
+services:
+  Elasticsearch:
+    image: docker.elastic.co/elasticsearch/elasticsearch:8.3.3
+    container_name: elasticsearch
+    restart: always
+    environment:
+      - xpack.security.enabled=false
+      - discovery.type=single-node
+    ulimits:
+      memlock:
+        soft: -1
+        hard: -1
+      nofile:
+        soft: 65536
+        hard: 65536
+    cap_add:
+      - IPC_LOCK
+    volumes:
+      - elasticsearch-data-volume:/usr/share/elasticsearch/data
+    ports:
+      - 9200:9200
+
+  kibana:
+    container_name: kibana
+    image: docker.elastic.co/kibana/kibana:8.3.3
+    restart: always
+    environment:
+      - ELASTICSEARCH_HOSTS=http://Elasticsearch:9200
+    ports:
+      - 5601:5601
+    depends_on:
+      - elasticsearch
+
+  Logstash:
+    image: docker.elastic.co/logstash/logstash:8.3.3
+    container_name: logstash
+    restart: always
+    volumes:
+    - ./logstash/:/logstash_dir
+    command: logstash -f /logstash_dir/logstash.conf 
+    depends_on:
+      - Elasticsearch
+    ports:
+    - '9600:9600'
+    environment:
+      LS_JAVA_OPTS: "-Xmx256m -Xms256m"    
+
+
+volumes:
+  elasticsearch-data-volume:
+    driver: local
+
+#docker run docker.elastic.co/beats/filebeat:8.3.3 setup -E setup.kibana.host=kibana:5601 -E output.elasticsearch.hosts=["elasticsearch:9200"]
